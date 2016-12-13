@@ -1,9 +1,11 @@
 from typing import Tuple, List
+import os.path
 
 from bottle import route, run, request
 from gensim.corpora.dictionary import Dictionary
 from gensim.matutils import corpus2csc
 from sklearn.naive_bayes import MultinomialNB, BaseDiscreteNB
+from sklearn.externals import joblib
 
 
 def load_corpus(path) -> Tuple[List[str], List[List[str]]]:
@@ -34,12 +36,22 @@ def predict(classifier: BaseDiscreteNB, dictionary: Dictionary,
     return classifier.predict(X)[0]
 
 
-@route('/classify')
-def classify():
+@route('/train')
+def train():
     categories, documents = load_corpus('corpus.txt')
     classifier, dictionary = train_model(documents, categories)
-    sentence = request.params.sentence.split()
-    return predict(classifier, dictionary, sentence)
+    joblib.dump((classifier, dictionary), 'model.pkl', compress=9)
+    return "trained"
+
+
+@route('/classify')
+def classify():
+    if os.path.exists('model.pkl'):
+        classifier, dictionary = joblib.load('model.pkl')
+        sentence = request.params.sentence.split()
+        return predict(classifier, dictionary, sentence)
+    else:
+        return "model not trained"
 
 
 run(host='localhost', port=8080)
