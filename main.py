@@ -1,5 +1,6 @@
 from typing import Tuple, List
 
+from bottle import route, run, request
 from gensim.corpora.dictionary import Dictionary
 from gensim.matutils import corpus2csc
 from sklearn.naive_bayes import MultinomialNB, BaseDiscreteNB
@@ -33,8 +34,12 @@ def predict(classifier: BaseDiscreteNB, dictionary: Dictionary,
     return classifier.predict(X)[0]
 
 
-categories, documents = load_corpus('corpus.txt')
-classifier, dictionary = train_model(documents, categories)
+@route('/classify')
+def classify():
+    categories, documents = load_corpus('corpus.txt')
+    classifier, dictionary = train_model(documents, categories)
+    sentence = request.params.sentence.split()
+    return predict(classifier, dictionary, sentence)
 
-predict_sentence = 'a dollar of 115 yen or more at the market price of the trump market 4% growth after the latter half of next year'.split()  # NOQA
-predict(classifier, dictionary, predict_sentence)
+
+run(host='localhost', port=8080)
