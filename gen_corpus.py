@@ -7,7 +7,8 @@ if __name__ == '__main__':
     random.shuffle(paths)
     with open('corpus.txt', 'w') as w:
         for path in paths:
-            *_, category, _ = path.split('/')
+            split = path.split('/')
+            category = split[-2]
             with open(path) as f:
                 line = ' '.join(f.read().split()).lower()
                 w.write('{}\t{}\n'.format(category, line))

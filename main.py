@@ -1,14 +1,22 @@
-from typing import Tuple, List
-import os.path
+# -*- coding: utf-8 -*-
+import os
+import ctypes
 
-from bottle import route, run, request
+
+for d, dirs, files in os.walk('lib'):
+    for f in files:
+        if f.endswith('.a'):
+            continue
+        ctypes.cdll.LoadLibrary(os.path.join(d, f))
+
+
 from gensim.corpora.dictionary import Dictionary
 from gensim.matutils import corpus2csc
-from sklearn.naive_bayes import MultinomialNB, BaseDiscreteNB
+from sklearn.naive_bayes import MultinomialNB
 from sklearn.externals import joblib
 
 
-def load_corpus(path) -> Tuple[List[str], List[List[str]]]:
+def load_corpus(path):
     """コーパスをファイルから取得"""
     categories = []
     docs = []
@@ -21,37 +29,23 @@ def load_corpus(path) -> Tuple[List[str], List[List[str]]]:
     return categories, docs
 
 
-def train_model(documents: List[List[str]], categories: List[str])\
-        -> Tuple[BaseDiscreteNB, Dictionary]:
+def train_model(documents, categories):
     """学習用API"""
     dictionary = Dictionary(documents)
     X = corpus2csc([dictionary.doc2bow(doc) for doc in documents]).T
     return MultinomialNB().fit(X, categories), dictionary
 
 
-def predict(classifier: BaseDiscreteNB, dictionary: Dictionary,
-            document: List[str]) -> str:
+def predict(classifier, dictionary, document):
     """分類用API"""
     X = corpus2csc([dictionary.doc2bow(document)], num_terms=len(dictionary)).T
     return classifier.predict(X)[0]
 
 
-@route('/train')
-def train():
-    categories, documents = load_corpus('corpus.txt')
-    classifier, dictionary = train_model(documents, categories)
-    joblib.dump((classifier, dictionary), 'model.pkl', compress=9)
-    return "trained"
-
-
-@route('/classify')
-def classify():
+def classify(event, context):
     if os.path.exists('model.pkl'):
         classifier, dictionary = joblib.load('model.pkl')
-        sentence = request.params.sentence.split()
+        sentence = event['sentence'].split()
         return predict(classifier, dictionary, sentence)
     else:
         return "model not trained"
-
-
-run(host='localhost', port=8080)
